@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ACFS3 - Cert Provider with DNS validation
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  DomainName:
+    Type: String
+  SubDomain:
+    Type: String
+
+Resources:
+  S3BucketLogs:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Solution
+          Value: ACFS3
+
+  S3SubDomainBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub '${SubDomain}.${DomainName}'
+      AccessControl: PublicRead
+      LoggingConfiguration:
+        DestinationBucketName: !Ref 'S3BucketLogs'
+        LogFilePrefix: 'cdn/'
+      WebsiteConfiguration:
+        ErrorDocument: '404.html'
+        IndexDocument: 'index.html'
+
+  S3DomainBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref DomainName
+      AccessControl: PublicRead
+      LoggingConfiguration:
+        DestinationBucketName: !Ref 'S3BucketLogs'
+        LogFilePrefix: 'rdb/'
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Sub '${SubDomain}.${DomainName}'
+
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3SubDomainBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action: 's3:GetObject'
+            Principal: '*'
+            Resource: !Sub
+              - '${S3BucketRootArn}/*'
+              - {S3BucketRootArn : !GetAtt S3SubDomainBucket.Arn}
+
+
+Outputs:
+  S3DomainBucket:
+    Description: Website bucket
+    Value: !Ref S3DomainBucket
+  S3DomainBucketName:
+    Description: Website bucket name
+    Value: !GetAtt S3DomainBucket.DomainName
+  S3DomainBucketArn:
+    Description: Website bucket locator
+    Value: !GetAtt S3DomainBucket.Arn
+  S3SubDomainBucket:
+    Description: Website bucket
+    Value: !Ref S3SubDomainBucket
+  S3SubDomainBucketName:
+    Description: Website bucket name
+    Value: !Sub '${SubDomain}.${DomainName}'
+  S3SubDomainBucketArn:
+    Description: Website bucket locator
+    Value: !GetAtt S3SubDomainBucket.Arn
+  S3BucketLogs:
+    Description: Logging bucket
+    Value: !Ref S3BucketLogs
+  S3BucketLogsName:
+    Description: Logging bucket Name
+    Value: !GetAtt S3BucketLogs.DomainName

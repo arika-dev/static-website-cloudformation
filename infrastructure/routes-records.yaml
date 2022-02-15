@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ACFS3 - CloudFront with Header Security and site content
+Transform: 'AWS::Serverless-2016-10-31'
+
+Parameters:
+  DomainName:
+    Description: Root Domain
+    Type: String
+  SubDomain:
+    Description: Subdomain
+    Type: String
+  CfSubDomainName:
+    Description: Cloudfront domain name
+    Type: String
+  CfApexDomainName:
+    Description: Cloudfront domain name
+    Type: String
+
+Resources:
+  SubDomainRoute53RecordSetGroup:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Sub '${DomainName}.'
+      RecordSets:
+        - Name: !Sub '${SubDomain}.${DomainName}'
+          Type: 'A'
+          AliasTarget:
+            DNSName: !Ref CfSubDomainName
+            EvaluateTargetHealth: false
+            # The  following HosteZoneId is always used for alias records pointing to CF.
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+
+  ApexDomainRoute53RecordSetGroup:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Sub '${DomainName}.'
+      RecordSets:
+        - Name: !Sub '${DomainName}'
+          Type: 'A'
+          AliasTarget:
+            DNSName: !Ref CfApexDomainName
+            EvaluateTargetHealth: false
+            # The  following HosteZoneId is always used for alias records pointing to CF.
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+
+Outputs:
+  SubDomainRoute53RecordSetGroup:
+    Description: sub domain route 53
+    Value: !Ref SubDomainRoute53RecordSetGroup
+
+  ApexDomainRoute53RecordSetGroup:
+    Description: domain route 53
+    Value: !Ref ApexDomainRoute53RecordSetGroup
